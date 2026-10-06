@@ -169,7 +169,12 @@ def load_model(path):
 	model = Wav2Lip()
 	print("Load checkpoint from: {}".format(path))
 	checkpoint = _load(path)
-	s = checkpoint["state_dict"]
+	if hasattr(checkpoint, 'state_dict'):
+		s = checkpoint.state_dict()
+	elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+		s = checkpoint["state_dict"]
+	else:
+		s = checkpoint
 	new_s = {}
 	for k, v in s.items():
 		new_s[k.replace('module.', '')] = v
@@ -274,7 +279,7 @@ def main():
 	out.release()
 
 	command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 1 {}'.format(args.audio, 'temp/result.avi', args.outfile)
-	subprocess.call(command, shell=platform.system() != 'Windows')
+	subprocess.call(command, shell=True)
 
 if __name__ == '__main__':
 	main()
