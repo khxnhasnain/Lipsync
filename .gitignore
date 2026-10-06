@@ -1,16 +1,46 @@
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
 *.pkl
-*.jpg
-*.mp4
-*.pth
-*.pyc
-__pycache__
 *.h5
+
+# Model weights & Checkpoints
+*.pth
+*.pt
+*.onnx
+
+# Media files
+*.jpg
+*.jpeg
+*.png
+*.mp4
 *.avi
 *.wav
-filelists/*.txt
-evaluation/test_filelists/lr*.txt
-*.pyc
+*.mp3
 *.mkv
 *.gif
 *.webm
-*.mp3
+
+# Output & Temporary directories
+temp/*
+!temp/README.md
+results/*
+!results/README.md
+
+# Datasets and Filelists
+filelists/*.txt
+evaluation/test_filelists/lr*.txt
+
+# IDEs & OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

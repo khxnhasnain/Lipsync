@@ -1,336 +1,227 @@
-# **Wav2Lip**: *Accurately Lip-syncing Videos In The Wild* 
+# Lipsync: Deep Audio-Visual Speech-to-Lip Synchronization
 
-# Commercial Version
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.12%2B%20%7C%202.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org/)
+[![FFmpeg](https://img.shields.io/badge/FFmpeg-Audio%2FVideo%20Processing-007808?logo=ffmpeg&logoColor=white)](https://ffmpeg.org/)
+[![License](https://img.shields.io/badge/License-Academic%20%2F%20Research-blue.svg)](LICENSE)
 
-Create your first lipsync generation in minutes. Please note, the commercial version is of a much higher quality than the old open source model!
-
-## Create your API Key
-
-Create your API key from the [Dashboard](https://sync.so/keys). You will use this key to securely access the Sync API.
-
-## Make your first generation
-
-The following example shows how to make a lipsync generation using the Sync API.
-
-### Python
-
-#### Step 1: Install Sync SDK
-
-```bash
-pip install syncsdk
-```
-
-#### Step 2: Make your first generation
-
-Copy the following code into a file `quickstart.py` and replace `YOUR_API_KEY_HERE` with your generated API key.
-
-```python
-# quickstart.py
-import time
-from sync import Sync
-from sync.common import Audio, GenerationOptions, Video
-from sync.core.api_error import ApiError
-
-# ---------- UPDATE API KEY ----------
-# Replace with your Sync.so API key
-api_key = "YOUR_API_KEY_HERE" 
-
-# ----------[OPTIONAL] UPDATE INPUT VIDEO AND AUDIO URL ----------
-# URL to your source video
-video_url = "https://assets.sync.so/docs/example-video.mp4"
-# URL to your audio file
-audio_url = "https://assets.sync.so/docs/example-audio.wav"
-# ----------------------------------------
-
-client = Sync(
-    base_url="https://api.sync.so", 
-    api_key=api_key
-).generations
-
-print("Starting lip sync generation job...")
-
-try:
-    response = client.create(
-        input=[Video(url=video_url),Audio(url=audio_url)],
-        model="lipsync-2",
-        options=GenerationOptions(sync_mode="cut_off"),
-        outputFileName="quickstart"
-    )
-except ApiError as e:
-    print(f'create generation request failed with status code {e.status_code} and error {e.body}')
-    exit()
-
-job_id = response.id
-print(f"Generation submitted successfully, job id: {job_id}")
-
-generation = client.get(job_id)
-status = generation.status
-while status not in ['COMPLETED', 'FAILED']:
-    print('polling status for generation', job_id)
-    time.sleep(10)
-    generation = client.get(job_id)
-    status = generation.status
-
-if status == 'COMPLETED':
-    print('generation', job_id, 'completed successfully, output url:', generation.output_url)
-else:
-    print('generation', job_id, 'failed')
-```
-
-Run the script:
-
-```bash
-python quickstart.py
-```
-
-#### Step 3: Done!
-
-It may take a few minutes for the generation to complete. You should see the generated video URL in the terminal post completion.
+An end-to-end deep learning pipeline that generates photorealistic, temporally synchronized lip movements for arbitrary talking-face videos conditioned on any input speech audio.
 
 ---
 
-### TypeScript
+## 📌 Executive Overview
 
-#### Step 1: Install dependencies
+Audio-driven talking-face generation poses significant challenges in synchronization accuracy, visual realism, and identity preservation. **Lipsync** addresses these through a dual-objective approach:
+1. **Expert Lip-Sync Discriminator:** Utilizes a pre-trained visual-audio synchronization evaluator (SyncNet) to guide the generator toward precise phonetic-to-viseme timing.
+2. **Visual Quality GAN:** Employs an adversarial discriminator to penalize blurred artifacts and synthesize realistic facial contours, teeth textures, and skin tones.
 
-```bash
-npm i @sync.so/sdk
-```
-
-#### Step 2: Make your first generation
-
-Copy the following code into a file `quickstart.ts` and replace `YOUR_API_KEY_HERE` with your generated API key.
-
-```typescript
-// quickstart.ts
-import { SyncClient, SyncError } from "@sync.so/sdk";
-
-// ---------- UPDATE API KEY ----------
-// Replace with your Sync.so API key
-const apiKey = "YOUR_API_KEY_HERE";
-
-// ----------[OPTIONAL] UPDATE INPUT VIDEO AND AUDIO URL ----------
-// URL to your source video
-const videoUrl = "https://assets.sync.so/docs/example-video.mp4";
-// URL to your audio file
-const audioUrl = "https://assets.sync.so/docs/example-audio.wav";
-// ----------------------------------------
-
-const client = new SyncClient({ apiKey });
-
-async function main() {
-    console.log("Starting lip sync generation job...");
-
-    let jobId: string;
-    try {
-        const response = await client.generations.create({
-            input: [
-                {
-                    type: "video",
-                    url: videoUrl,
-                },
-                {
-                    type: "audio",
-                    url: audioUrl,
-                },
-            ],
-            model: "lipsync-2",
-            options: {
-                sync_mode: "cut_off",
-            },
-            outputFileName: "quickstart"
-        });
-        jobId = response.id;
-        console.log(`Generation submitted successfully, job id: ${jobId}`);
-    } catch (err) {
-        if (err instanceof SyncError) {
-            console.error(`create generation request failed with status code ${err.statusCode} and error ${JSON.stringify(err.body)}`);
-        } else {
-            console.error('An unexpected error occurred:', err);
-        }
-        return;
-    }
-
-    let generation;
-    let status;
-    while (status !== 'COMPLETED' && status !== 'FAILED') {
-        console.log(`polling status for generation ${jobId}...`);
-        try {
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            generation = await client.generations.get(jobId);
-            status = generation.status;
-        } catch (err) {
-            if (err instanceof SyncError) {
-                console.error(`polling failed with status code ${err.statusCode} and error ${JSON.stringify(err.body)}`);
-            } else {
-                console.error('An unexpected error occurred during polling:', err);
-            }
-            status = 'FAILED';
-        }
-    }
-
-    if (status === 'COMPLETED') {
-        console.log(`generation ${jobId} completed successfully, output url: ${generation?.outputUrl}`);
-    } else {
-        console.log(`generation ${jobId} failed`);
-    }
-}
-
-main();
-```
-
-Run the script:
-
-```bash
-npx tsx quickstart.ts -y
-```
-
-#### Step 3: Done!
-
-You should see the generated video URL in the terminal.
+The system is completely **identity-agnostic** and **language-agnostic**—capable of synchronizing any target face (real footage, animated avatars, CGI characters) with any voice source.
 
 ---
 
-## Next Steps
+## 🧠 System Architecture
 
-Well done! You've just made your first lipsync generation with sync.so!
+```mermaid
+flowchart LR
+    subgraph Inputs
+        A[Input Face Video] --> D[Face Detection & Cropping]
+        B[Input Speech Audio] --> E[Mel-Spectrogram Extraction]
+    end
 
-Ready to unlock the full potential of lipsync? Dive into our interactive [Studio](https://sync.so/login) to experiment with all available models, or explore our [API Documentation](/api-reference) to take your lip-sync generations to the next level!
+    subgraph Deep_Learning_Pipeline["Deep Learning Pipeline"]
+        D --> F[Spatio-Temporal Face Generator]
+        E --> F
+        F --> G[Synthesized Face Frames]
+        G --> H[SyncNet Expert Discriminator]
+        G --> I[Visual Quality GAN Discriminator]
+    end
 
-## Contact
-- prady@sync.so
-- pavan@sync.so
-- sanjit@sync.so
+    subgraph Output
+        G --> J[Seamless Face Blending & Audio Re-muxing]
+        J --> K[Final Synchronized Video]
+    end
+```
 
+---
 
+## ✨ Key Capabilities
 
-# Non Commercial Open-source Version
+- **In-the-Wild Robustness:** Handles dynamic head poses, variable lighting, head rotation, and occlusions.
+- **Cross-Lingual & Multi-Voice:** Works seamlessly across diverse languages, accents, synthetic speech (TTS), and background music.
+- **Identity & Emotion Preservation:** Retains original facial features, gaze, emotional tone, and upper-face expressions without distortion.
+- **Modular Pipeline:** Flexible inference configurations with fine-grained control over bounding box padding, smoothing, and resolution downscaling.
 
-This code is part of the paper: _A Lip Sync Expert Is All You Need for Speech to Lip Generation In the Wild_ published at ACM Multimedia 2020. 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/a-lip-sync-expert-is-all-you-need-for-speech/lip-sync-on-lrs2)](https://paperswithcode.com/sota/lip-sync-on-lrs2?p=a-lip-sync-expert-is-all-you-need-for-speech)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/a-lip-sync-expert-is-all-you-need-for-speech/lip-sync-on-lrs3)](https://paperswithcode.com/sota/lip-sync-on-lrs3?p=a-lip-sync-expert-is-all-you-need-for-speech)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/a-lip-sync-expert-is-all-you-need-for-speech/lip-sync-on-lrw)](https://paperswithcode.com/sota/lip-sync-on-lrw?p=a-lip-sync-expert-is-all-you-need-for-speech)
-|📑 Original Paper|📰 Project Page|🌀 Demo|⚡ Live Testing|📔 Colab Notebook
-|:-:|:-:|:-:|:-:|:-:|
-[Paper](http://arxiv.org/abs/2008.10010) | [Project Page](http://cvit.iiit.ac.in/research/projects/cvit-projects/a-lip-sync-expert-is-all-you-need-for-speech-to-lip-generation-in-the-wild/) | [Demo Video](https://youtu.be/0fXaDCZNOJc) | [Interactive Demo](https://synclabs.so/) | [Colab Notebook](https://colab.research.google.com/drive/1tZpDWXz49W6wDcTprANRGLo2D_EbD5J8?usp=sharing) /[Updated Collab Notebook](https://colab.research.google.com/drive/1IjFW1cLevs6Ouyu4Yht4mnR4yeuMqO7Y#scrollTo=MH1m608OymLH)
- 
-![Logo](https://drive.google.com/uc?export=view&id=1Wn0hPmpo4GRbCIJR8Tf20Akzdi1qjjG9)
-----------
-**Highlights**
-----------
- - Weights of the visual quality disc has been updated in readme!
- - Lip-sync videos to any target speech with high accuracy :100:. Try our [interactive demo](https://sync.so/).
- - :sparkles: Works for any identity, voice, and language. Also works for CGI faces and synthetic voices.
- - Complete training code, inference code, and pretrained models are available :boom:
- - Or, quick-start with the Google Colab Notebook: [Link](https://colab.research.google.com/drive/1tZpDWXz49W6wDcTprANRGLo2D_EbD5J8?usp=sharing). Checkpoints and samples are available in a Google Drive [folder](https://drive.google.com/drive/folders/1I-0dNLfFOSFwrfqjNa-SXuwaURHE5K4k?usp=sharing) as well. There is also a [tutorial video](https://www.youtube.com/watch?v=Ic0TBhfuOrA) on this, courtesy of [What Make Art](https://www.youtube.com/channel/UCmGXH-jy0o2CuhqtpxbaQgA). Also, thanks to [Eyal Gruss](https://eyalgruss.com), there is a more accessible [Google Colab notebook](https://j.mp/wav2lip) with more useful features. A tutorial collab notebook is present at this [link](https://colab.research.google.com/drive/1IjFW1cLevs6Ouyu4Yht4mnR4yeuMqO7Y#scrollTo=MH1m608OymLH).  
- - :fire: :fire: Several new, reliable evaluation benchmarks and metrics [[`evaluation/` folder of this repo]](https://github.com/Rudrabha/Wav2Lip/tree/master/evaluation) released. Instructions to calculate the metrics reported in the paper are also present.
---------
-**Disclaimer**
---------
-All results from this open-source code or our [demo website](https://bhaasha.iiit.ac.in/lipsync) should only be used for research/academic/personal purposes only. As the models are trained on the <a href="http://www.robots.ox.ac.uk/~vgg/data/lip_reading/lrs2.html">LRS2 dataset</a>, any form of commercial use is strictly prohibited. For commercial requests please contact us directly!
-Prerequisites
--------------
-- `Python 3.6` 
-- ffmpeg: `sudo apt-get install ffmpeg`
-- Install necessary packages using `pip install -r requirements.txt`. Alternatively, instructions for using a docker image is provided [here](https://gist.github.com/xenogenesi/e62d3d13dadbc164124c830e9c453668). Have a look at [this comment](https://github.com/Rudrabha/Wav2Lip/issues/131#issuecomment-725478562) and comment on [the gist](https://gist.github.com/xenogenesi/e62d3d13dadbc164124c830e9c453668) if you encounter any issues. 
-- Face detection [pre-trained model](https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth) should be downloaded to `face_detection/detection/sfd/s3fd.pth`. Alternative [link](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/prajwal_k_research_iiit_ac_in/EZsy6qWuivtDnANIG73iHjIBjMSoojcIV0NULXV-yiuiIg?e=qTasa8) if the above does not work.
-Getting the weights
-----------
-| Model  | Description |  Link to the model | 
-| :-------------: | :---------------: | :---------------: |
-| Wav2Lip  | Highly accurate lip-sync | [Link](https://drive.google.com/drive/folders/153HLrqlBNxzZcHi17PEvP09kkAfzRshM?usp=share_link)  |
-| Wav2Lip + GAN  | Slightly inferior lip-sync, but better visual quality | [Link](https://drive.google.com/file/d/15G3U08c8xsCkOqQxE38Z2XXDnPcOptNk/view?usp=share_link) |
+---
 
+## 🛠️ Tech Stack & Dependencies
 
-Lip-syncing videos using the pre-trained models (Inference)
--------
-You can lip-sync any video to any audio:
+- **Language:** Python 3.8+
+- **Deep Learning Framework:** PyTorch (`torch`, `torchvision`)
+- **Computer Vision:** OpenCV (`opencv-python`, `opencv-contrib-python`), S3FD Face Detector
+- **Audio Processing:** Librosa, SoundFile, SciPy, Numba
+- **Video & Multimedia Engine:** FFmpeg
+
+---
+
+## 📂 Project Structure
+
+```text
+Lipsync/
+├── checkpoints/              # Directory for trained model weights (.pth)
+│   └── README.md
+├── face_detection/           # S3FD face detection modules & landmarks
+│   ├── detection/sfd/        # S3FD architecture and inference scripts
+│   └── api.py
+├── models/                   # Neural network architectures
+│   ├── wav2lip.py            # Generator & discriminator models
+│   ├── syncnet.py            # SyncNet expert discriminator
+│   └── conv.py               # Reusable convolutional building blocks
+├── evaluation/               # Lip-sync error (LSE-C / LSE-D) benchmarking
+├── filelists/                # Dataset splitting lists (train, val, test)
+├── audio.py                  # Audio preprocessing & mel spectrogram generation
+├── hparams.py                # Hyperparameter definitions
+├── inference.py              # CLI inference engine for video generation
+├── preprocess.py             # Dataset preprocessing pipeline
+├── wav2lip_train.py          # Standard model training script
+├── hq_wav2lip_train.py       # High-quality GAN training script
+├── color_syncnet_train.py    # Expert discriminator training script
+└── requirements.txt          # Python dependency specifications
+```
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+
+Ensure **FFmpeg** is installed and accessible via your system terminal:
+
 ```bash
-python inference.py --checkpoint_path <ckpt> --face <video.mp4> --audio <an-audio-source> 
+# Verify installation
+ffmpeg -version
 ```
-The result is saved (by default) in `results/result_voice.mp4`. You can specify it as an argument,  similar to several other available options. The audio source can be any file supported by `FFMPEG` containing audio data: `*.wav`, `*.mp3` or even a video file, from which the code will automatically extract the audio.
-##### Tips for better results:
-- Experiment with the `--pads` argument to adjust the detected face bounding box. Often leads to improved results. You might need to increase the bottom padding to include the chin region. E.g. `--pads 0 20 0 0`.
-- If you see the mouth position dislocated or some weird artifacts such as two mouths, then it can be because of over-smoothing the face detections. Use the `--nosmooth` argument and give it another try. 
-- Experiment with the `--resize_factor` argument, to get a lower-resolution video. Why? The models are trained on faces that were at a lower resolution. You might get better, visually pleasing results for 720p videos than for 1080p videos (in many cases, the latter works well too). 
-- The Wav2Lip model without GAN usually needs more experimenting with the above two to get the most ideal results, and sometimes, can give you a better result as well.
-Preparing LRS2 for training
-----------
-Our models are trained on LRS2. See [here](#training-on-datasets-other-than-lrs2) for a few suggestions regarding training on other datasets.
-##### LRS2 dataset folder structure
-```
-data_root (mvlrs_v1)
-├── main, pretrain (we use only main folder in this work)
-|	├── list of folders
-|	│   ├── five-digit numbered video IDs ending with (.mp4)
-```
-Place the LRS2 filelists (train, val, test) `.txt` files in the `filelists/` folder.
-##### Preprocess the dataset for fast training
+
+- **Windows:** Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or install via `winget install Gyan.FFmpeg`.
+- **Linux / Ubuntu:** `sudo apt-get install -y ffmpeg`
+- **macOS:** `brew install ffmpeg`
+
+---
+
+### 2. Environment Setup
+
+Clone the repository and set up a clean Python virtual environment:
+
 ```bash
-python preprocess.py --data_root data_root/main --preprocessed_root lrs2_preprocessed/
+# Clone repository
+git clone https://github.com/khxnhasnain/Lipsync.git
+cd Lipsync
+
+# Create and activate virtual environment
+python -m venv venv
+
+# Windows
+.\venv\Scripts\activate
+
+# Linux / macOS
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
-Additional options like `batch_size` and the number of GPUs to use in parallel to use can also be set.
-##### Preprocessed LRS2 folder structure
-```
-preprocessed_root (lrs2_preprocessed)
-├── list of folders
-|	├── Folders with five-digit numbered video IDs
-|	│   ├── *.jpg
-|	│   ├── audio.wav
-```
-Train!
-----------
-There are two major steps: (i) Train the expert lip-sync discriminator, (ii) Train the Wav2Lip model(s).
-##### Training the expert discriminator
-You can download [the pre-trained weights](#getting-the-weights) if you want to skip this step. To train it:
+
+---
+
+### 3. Model Checkpoints
+
+Download the pre-trained weights and organize them into the appropriate folders:
+
+| Model | Description | Checkpoint Path | Download Link |
+| :--- | :--- | :--- | :--- |
+| **Wav2Lip** | Highly accurate lip synchronization | `checkpoints/wav2lip.pth` | [Download (Google Drive)](https://drive.google.com/drive/folders/153HLrqlBNxzZcHi17PEvP09kkAfzRshM?usp=share_link) |
+| **Wav2Lip + GAN** | Better visual fidelity with sharp lip textures | `checkpoints/wav2lip_gan.pth` | [Download (Google Drive)](https://drive.google.com/file/d/15G3U08c8xsCkOqQxE38Z2XXDnPcOptNk/view?usp=share_link) |
+| **S3FD Face Detector** | Required for face landmark extraction | `face_detection/detection/sfd/s3fd.pth` | [Download (Adrian Bulat)](https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth) |
+
+---
+
+## 🎬 Running Inference
+
+Generate a synchronized video from any video and audio file:
+
 ```bash
-python color_syncnet_train.py --data_root lrs2_preprocessed/ --checkpoint_dir <folder_to_save_checkpoints>
+python inference.py \
+    --checkpoint_path checkpoints/wav2lip_gan.pth \
+    --face path/to/input_video.mp4 \
+    --audio path/to/input_audio.wav \
+    --outfile results/output.mp4
 ```
-##### Training the Wav2Lip models
-You can either train the model without the additional visual quality discriminator (< 1 day of training) or use the discriminator (~2 days). For the former, run: 
+
+### Advanced Inference Options
+
+| Flag | Default | Description |
+| :--- | :--- | :--- |
+| `--pads` | `0 10 0 0` | Bounding box adjustments `[top, bottom, left, right]`. Increase bottom padding (`--pads 0 20 0 0`) for chin coverage. |
+| `--nosmooth` | `False` | Disables temporal smoothing across face detections. Useful when mouth boundaries jitter. |
+| `--resize_factor` | `1` | Downsamples frame resolution (e.g. `2` or `3`) to handle high-resolution inputs more effectively. |
+| `--static` | `False` | When input is a single image (`.jpg` / `.png`), keeps face static while driving lip animation. |
+| `--box` | `-1 -1 -1 -1` | Specify manual crop region `[y1, y2, x1, x2]` if automatic detector misses face. |
+
+---
+
+## 🏋️ Training Pipeline
+
+### Step 1: Preprocess Dataset (LRS2 or Custom)
 ```bash
-python wav2lip_train.py --data_root lrs2_preprocessed/ --checkpoint_dir <folder_to_save_checkpoints> --syncnet_checkpoint_path <path_to_expert_disc_checkpoint>
+python preprocess.py \
+    --data_root path/to/lrs2_dataset/main \
+    --preprocessed_root path/to/lrs2_preprocessed/ \
+    --batch_size 32
 ```
-To train with the visual quality discriminator, you should run `hq_wav2lip_train.py` instead. The arguments for both files are similar. In both cases, you can resume training as well. Look at `python wav2lip_train.py --help` for more details. You can also set additional less commonly-used hyper-parameters at the bottom of the `hparams.py` file.
-Training on datasets other than LRS2
-------------------------------------
-Training on other datasets might require modifications to the code. Please read the following before you raise an issue:
-- You might not get good results by training/fine-tuning on a few minutes of a single speaker. This is a separate research problem, to which we do not have a solution yet. Thus, we would most likely not be able to resolve your issue. 
-- You must train the expert discriminator for your own dataset before training Wav2Lip.
-- If it is your own dataset downloaded from the web, in most cases, needs to be sync-corrected.
-- Be mindful of the FPS of the videos of your dataset. Changes to FPS would need significant code changes. 
-- The expert discriminator's eval loss should go down to ~0.25 and the Wav2Lip eval sync loss should go down to ~0.2 to get good results. 
-When raising an issue on this topic, please let us know that you are aware of all these points.
-We have an HD model trained on a dataset allowing commercial usage. The size of the generated face will be 192 x 288 in our new model.
-Evaluation
-----------
-Please check the `evaluation/` folder for the instructions.
-License and Citation
-----------
-This repository can only be used for personal/research/non-commercial purposes. However, for commercial requests, please contact us directly at rudrabha@synclabs.so or prajwal@synclabs.so. We have a turn-key hosted API with new and improved lip-syncing models here: https://synclabs.so/
-The size of the generated face will be 192 x 288 in our new models. Please cite the following paper if you use this repository:
+
+### Step 2: Train Expert Lip-Sync Discriminator
+```bash
+python color_syncnet_train.py \
+    --data_root path/to/lrs2_preprocessed/ \
+    --checkpoint_dir checkpoints/syncnet/
 ```
-@inproceedings{10.1145/3394171.3413532,
-author = {Prajwal, K R and Mukhopadhyay, Rudrabha and Namboodiri, Vinay P. and Jawahar, C.V.},
-title = {A Lip Sync Expert Is All You Need for Speech to Lip Generation In the Wild},
-year = {2020},
-isbn = {9781450379885},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-url = {https://doi.org/10.1145/3394171.3413532},
-doi = {10.1145/3394171.3413532},
-booktitle = {Proceedings of the 28th ACM International Conference on Multimedia},
-pages = {484–492},
-numpages = {9},
-keywords = {lip sync, talking face generation, video generation},
-location = {Seattle, WA, USA},
-series = {MM '20}
+
+### Step 3: Train Lip-Sync Generator (GAN)
+```bash
+python hq_wav2lip_train.py \
+    --data_root path/to/lrs2_preprocessed/ \
+    --checkpoint_dir checkpoints/wav2lip_gan/ \
+    --syncnet_checkpoint_path checkpoints/syncnet/checkpoint.pth
+```
+
+---
+
+## 📊 Benchmark Metrics
+
+The repository includes standard evaluation metrics used in state-of-the-art lip-reading and synthesis research:
+- **LSE-D (Lip Sync Error - Distance):** Measures Euclidean distance in audio-visual feature space (lower is better).
+- **LSE-C (Lip Sync Error - Confidence):** Measures audio-visual synchronization confidence (higher is better).
+
+Run evaluation benchmarks using scripts inside the [`evaluation/`](evaluation/) directory.
+
+---
+
+## 📜 Citations & Acknowledgments
+
+This implementation builds upon the foundational research in audio-visual speech generation:
+
+```bibtex
+@inproceedings{wav2lip2020,
+  author    = {Prajwal, K R and Mukhopadhyay, Rudrabha and Namboodiri, Vinay P. and Jawahar, C.V.},
+  title     = {A Lip Sync Expert Is All You Need for Speech to Lip Generation In the Wild},
+  booktitle = {ACM International Conference on Multimedia (ACM MM)},
+  year      = {2020},
+  pages     = {484–492}
 }
 ```
-Acknowledgments
-----------
-Parts of the code structure are inspired by this [TTS repository](https://github.com/r9y9/deepvoice3_pytorch). We thank the author for this wonderful code. The code for Face Detection has been taken from the [face_alignment](https://github.com/1adrianb/face-alignment) repository. We thank the authors for releasing their code and models. We thank [zabique](https://github.com/zabique) for the tutorial collab notebook.
-## Acknowledgements
- - [Awesome Readme Templates](https://awesomeopensource.com/project/elangosundar/awesome-README-templates)
- - [Awesome README](https://github.com/matiassingers/awesome-readme)
- - [How to write a Good readme](https://bulldogjob.com/news/449-how-to-write-a-good-readme-for-your-github-project)
+
+---
+
+## 👤 Author & Contact
+
+**Hasnain Khan**  
+GitHub: [@khxnhasnain](https://github.com/khxnhasnain)
